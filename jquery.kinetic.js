@@ -172,6 +172,7 @@
         if (self._useTarget(e.target, e)){
           touch = e.originalEvent.touches[0];
           self.threshold = self._threshold(e.target, e);
+          self.isScroll = false;
           self._start(touch.clientX, touch.clientY);
           e.stopPropagation();
         }
@@ -180,9 +181,16 @@
         var touch;
         if (self.mouseDown){
           touch = e.originalEvent.touches[0];
-          self._inputmove(touch.clientX, touch.clientY);
-          if (e.preventDefault){
-            e.preventDefault();
+          var rate = Math.abs((self.ypos - touch.clientY)/(self.xpos - touch.clientX));
+          // console.log(rate < 0.67 ? 'horisontal' : rate > 1.5 ? 'vertical' : 'idunno');
+          if(rate < 0.67 || (self.lastDirectionIsHorisontal && rate > 1.5)){
+              self._inputmove(touch.clientX, touch.clientY);
+              if (e.preventDefault){
+                  e.preventDefault();
+              }
+              self.lastDirectionIsHorisontal = rate < 0.75;
+          }else{
+              self._inputmove(touch.clientX, touch.clientY, true);
           }
         }
       },
@@ -248,7 +256,7 @@
 
   };
 
-  Kinetic.prototype._inputmove = function (clientX, clientY){
+  Kinetic.prototype._inputmove = function (clientX, clientY, updateOnly){
     var $this = this.$el;
     var el = this.el;
 
@@ -279,18 +287,21 @@
         this.settings.decelerate = false;
         this.velocity = this.velocityY = 0;
 
-        var scrollLeft = this.scrollLeft();
-        var scrollTop = this.scrollTop();
-
-        this.scrollLeft(this.settings.x ? scrollLeft - movedX : scrollLeft);
-        this.scrollTop(this.settings.y ? scrollTop - movedY : scrollTop);
-
         this.prevXPos = this.xpos;
         this.prevYPos = this.ypos;
         this.xpos = clientX;
         this.ypos = clientY;
 
         this._calculateVelocities();
+
+        if (updateOnly) return;
+
+        var scrollLeft = this.scrollLeft();
+        var scrollTop = this.scrollTop();
+
+        this.scrollLeft(this.settings.x ? scrollLeft - movedX : scrollLeft);
+        this.scrollTop(this.settings.y ? scrollTop - movedY : scrollTop);
+
         this._setMoveClasses(this.settings.movingClass);
 
         if ($.isFunction(this.settings.moved)){
